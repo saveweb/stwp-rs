@@ -1,18 +1,38 @@
+use crate::task::Id;
+use serde::Serialize;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all_fields(serialize = "lowercase"))]
 pub enum ItemIdType {
-    Str(String),
-    Int(u64),
+    Int,
+    Str,
+}
+impl From<&Id> for ItemIdType {
+    fn from(s: &Id) -> Self {
+        match s {
+            Id::Int(_) => ItemIdType::Int,
+            Id::Str(_) => ItemIdType::Str,
+        }
+    }
 }
 
-pub enum ItemStatus {
+
+
+#[derive(Debug, Serialize, Clone)]
+// #[serde(rename_all_fields(serialize = "lowercase"))]
+pub enum ItemStatusType {
     None,
-    Str(String),
-    Int(u64),
+    #[serde(rename = "int")]
+    Int,
+    #[serde(rename = "str")]
+    Str,
 }
 
+#[derive(Debug, Serialize, Clone)]
 pub struct Item {
-    item_id: String,
-    item_id_type: ItemIdType,
-    item_status: String,
-    item_status_type: ItemStatus,
-    payload: String,
+    pub item_id: String,
+    pub item_id_type: String,
+    pub item_status: String,
+    pub item_status_type: ItemStatusType,
+    pub payload: String,
 }
