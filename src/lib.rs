@@ -4,10 +4,10 @@ use tokio::sync::RwLock;
 use tokio::time::Duration;
 
 pub mod archivist;
+pub mod background;
 pub mod item;
 pub mod project;
 pub mod task;
-pub mod background;
 
 const TRACKER_NODES: [&str; 7] = [
     // "http://localhost:8080", // 测试环境
@@ -28,7 +28,7 @@ pub struct Tracker {
     http_client: reqwest::Client,
     client_version: String,
     archivist: String,
-    project: Option<Project>,
+    project: Arc<RwLock<Option<Project>>>,
 }
 
 impl Tracker {
@@ -38,9 +38,9 @@ impl Tracker {
         archivist: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let api_base = Arc::new(RwLock::new(TRACKER_NODES[1]));
-        Self::start_select_tracker_background(Arc::clone(&api_base));
-        Ok(Tracker {
-            api_base,
+        let project = Arc::new(RwLock::new(None));
+        let t = Tracker {
+            api_base: Arc::clone(&api_base),
             api_version: "v1",
             project_id: project_id,
             http_client: reqwest::Client::builder()
@@ -48,8 +48,11 @@ impl Tracker {
                 .build()?,
             client_version,
             archivist,
-            project: None,
-        })
+            project,
+        };
+        Self::select_tracker_background(api_base);
+        t.update_project_background();
+        Ok(t)
     }
 }
 

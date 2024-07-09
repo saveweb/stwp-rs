@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use tokio::{sync::RwLock, time::Duration};
 
-use crate::{Tracker, TRACKER_NODES};
+use crate::{project::Project, Tracker, TRACKER_NODES};
 
 impl Tracker {
-    pub fn start_select_tracker_background(api_base: Arc<RwLock<&'static str>>) {
+    pub fn select_tracker_background(api_base: Arc<RwLock<&'static str>>) {
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(60)).await;

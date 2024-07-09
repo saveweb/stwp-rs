@@ -42,7 +42,7 @@ pub struct Project {
 }
 
 impl Tracker {
-    pub async fn fetch_project(&self) -> Result<Project, Box<dyn std::error::Error>> {
+    async fn fetch_project(&self) -> Result<Project, Box<dyn std::error::Error>> {
         println!("fetch_project... {}", self.project_id);
         let api_base = *self.api_base.read().await;
 
@@ -51,15 +51,22 @@ impl Tracker {
             api_base, self.api_version, self.project_id
         );
         let res = self.http_client.post(&url).send().await?;
-        // parse response as json
         let project: Project = serde_json::from_str(&res.text().await?)?;
         Ok(project)
     }
 
-    pub async fn get_project(&mut self) -> &Project {
-        if self.project.is_none() {
-            self.project = Some(self.fetch_project().await.unwrap());
-        }
-        self.project.as_ref().unwrap()
-    } // if let 会转移所有权
+    pub async fn update_project(&self) {
+        let project = self.project.clone();
+        let new_project = self.fetch_project().await.unwrap();
+        let mut write_guard = project.write().await;
+        *write_guard = Some(new_project);
+    }
+
+    // pub async fn get_project(&mut self) -> &Project {
+    //     if self.project.read().await.is_none() {
+    //         let project = self.fetch_project().await.unwrap();
+    //         *self.project.write().await = Some(project);
+    //     }
+    //     self.project.read().await.as_ref().unwrap()
+    //} if let 会转移所有权
 }
