@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use crate::Tracker;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ProjectMeta {
     identifier: String,
@@ -10,6 +11,7 @@ pub struct ProjectMeta {
     deadline: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ProjectStatus {
     public: bool,
@@ -18,10 +20,11 @@ pub struct ProjectStatus {
 
 #[derive(Debug, Deserialize)]
 pub struct ProjectClient {
-    version: String,
-    claim_task_delay: f64, // 用来做 QoS 的
+    pub version: String,
+    pub claim_task_delay: f64, // 用来做 QoS 的
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ProjectMongodb {
     db_name: String,
@@ -32,18 +35,20 @@ pub struct ProjectMongodb {
 
 #[derive(Debug, Deserialize)]
 pub struct Project {
-    meta: ProjectMeta,
-    status: ProjectStatus,
-    client: ProjectClient,
-    mongodb: ProjectMongodb,
+    pub meta: ProjectMeta,
+    pub status: ProjectStatus,
+    pub client: ProjectClient,
+    pub mongodb: ProjectMongodb,
 }
 
 impl Tracker {
     pub async fn fetch_project(&self) -> Result<Project, Box<dyn std::error::Error>> {
         println!("fetch_project... {}", self.project_id);
+        let api_base = *self.api_base.read().await;
+
         let url = format!(
             "{}/{}/project/{}",
-            self.api_base, self.api_version, self.project_id
+            api_base, self.api_version, self.project_id
         );
         let res = self.http_client.post(&url).send().await?;
         // parse response as json

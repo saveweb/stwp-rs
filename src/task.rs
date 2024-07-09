@@ -2,7 +2,10 @@ use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Debug, Display};
 
-use crate::{item::{Item, ItemStatusType}, Tracker};
+use crate::{
+    item::{Item, ItemStatusType},
+    Tracker,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Status {
@@ -41,29 +44,34 @@ impl Display for Id {
     }
 }
 
-// {"_id":"6663569c658e3647d062680b","archivist":"aaaa","claimed_at":"2024-07-08T18:54:17.463Z","id":23,"statu@OverflowCat ➜ /workspaces/stwp-rs (master) $ :argo test -- --nocapture
+/// MongoDB ObjectId
+type ObjectId = String;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Task {
-    pub _id: String,
-    pub id: Id, // 也不行，我看看 
+    pub _id: ObjectId,
+    pub id: Id,
     pub status: Status,
     pub archivist: String,
     pub claimed_at: Option<String>,
     pub updated_at: Option<String>,
 }
 
-// 要不写下测试？
-// codespace 的 rust analyzer 好慢
 impl Tracker {
-    pub async fn claim_task(&self, with_delay: bool) -> Option<Task> {
+    pub async fn claim_task(&mut self, with_delay: bool) -> Option<Task> {
         if with_delay {
-            // tokio::time::sleep(tokio::time::Duration::from_secs(t.project()) /* TODO */).await;
+            let project = self.get_project().await;
+            tokio::time::sleep(tokio::time::Duration::from_secs_f64(
+                project.client.claim_task_delay,
+            ))
+            .await;
         }
 
-        // 	resp, err := t.HTTP_client.Post(t.API_BASE+t.API_VERSION+"/project/"+t.project_id+"/"+t.client_version+"/"+t.archivist+"/claim_task", "", nil)
+        let api_base = *self.api_base.read().await;
+
         let url = format!(
             "{}/{}/project/{}/{}/{}/claim_task",
-            self.api_base, self.api_version, self.project_id, self.client_version, self.archivist
+            api_base, self.api_version, self.project_id, self.client_version, self.archivist
         );
         println!("{}", url);
         let resp = self.http_client.post(&url).send().await.unwrap();
@@ -75,10 +83,11 @@ impl Tracker {
         post_data.insert("status", to_status.to_string());
         post_data.insert("task_id_type", task_id.to_string());
 
-        // resp, err := t.HTTP_client.Post(t.API_BASE+t.API_VERSION+"/project/"+t.project_id+"/"+t.client_version+"/"+t.archivist+"/update_task/"+task_id, "application/x-www-form-urlencoded", strings.NewReader(postData.Encode()))
+        let api_base = *self.api_base.read().await;
+
         let url = format!(
             "{}/{}/{}/{}/{}/update_task/{}",
-            self.api_base,
+            api_base,
             self.api_version,
             self.project_id,
             self.client_version,
@@ -99,13 +108,12 @@ impl Tracker {
         if items.is_empty() {
             return "len(Items) == 0, nothing to insert".to_string();
         }
+
+        let api_base = *self.api_base.read().await;
         let url = format!(
-            // 	req_url := t.API_BASE + t.API_VERSION + "/project/" + t.project_id + "/" + t.client_version + "/" + t.archivist + "/insert_many/" + fmt.Sprintf("%d", len(Items))
             "{}/{}/project/{}/{}/{}/insert_many/{}",
             // TODO: 该找个 path builder 了？
-            // 今天先不管了
-
-            self.api_base,
+            api_base,
             self.api_version,
             self.project_id,
             self.client_version,
@@ -130,10 +138,11 @@ impl Tracker {
         item_status: String, // TODO
         payload: String,
     ) -> String {
-        // req_url := t.API_BASE + t.API_VERSION + "/project/" + t.project_id + "/" + t.client_version + "/" + t.archivist + "/insert_item/" + task.Id
+        let api_base = *self.api_base.read().await;
+
         let url = format!(
             "{}/{}/project/{}/{}/{}/insert_item/{}",
-            self.api_base,
+            api_base,
             self.api_version,
             self.project_id,
             self.client_version,
@@ -150,15 +159,6 @@ impl Tracker {
         //     Payload          string `json:"payload" binding:"required"`
         // }
 
-        // 感觉需要定义一个 ForPostItem(what?) 之类的东西……
-        // 我后端没有从 json 类型来判断类型。
-
-        // 我后端写得烂，我的锅
-        // 另外就是，我怕遇到 int64/float64+ 的 id，所以全部传 str，然后用 _type 来区分
-        // 我看下 serde 文档
-
-        // client 需要 deserialize Item 吗？还是只发送不读取
-        // 只发送ok
         // 也可以发 HTTP Form
         let item = Item {
             item_id: task.id.to_string(),
